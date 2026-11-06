@@ -20,31 +20,24 @@ pipeline {
             }
         }
 
-        stage('2. Python Syntax Validation') {
-            steps {
-                echo '==> [Syntax Validation] Validating Python syntax in container...'
-                sh '''
-                    docker run --rm -v "$(pwd)":/app -w /app python:3.10-slim python -m py_compile app.py actions.py config.py gesture_utils.py
-                '''
-            }
-        }
-
-        stage('3. Run Automated Unit Tests') {
-            steps {
-                echo '==> [Testing] Running pytest suite...'
-                sh '''
-                    docker run --rm -v "$(pwd)":/app -w /app python:3.10-slim sh -c "
-                        pip install --no-cache-dir pytest
-                        pytest -v tests/
-                    "
-                '''
-            }
-        }
-
-        stage('4. Docker Build') {
+        stage('2. Docker Build') {
             steps {
                 echo "==> [Docker Build] Building Docker image ${APP_NAME}:latest and ${APP_NAME}:${IMAGE_TAG}..."
                 sh "docker build -t ${APP_NAME}:latest -t ${APP_NAME}:${IMAGE_TAG} ."
+            }
+        }
+
+        stage('3. In-Container Syntax Validation') {
+            steps {
+                echo '==> [Syntax Validation] Validating Python syntax inside container...'
+                sh "docker run --rm ${APP_NAME}:latest python -m py_compile app.py actions.py config.py gesture_utils.py"
+            }
+        }
+
+        stage('4. Run Automated Unit Tests') {
+            steps {
+                echo '==> [Testing] Running pytest test suite inside container...'
+                sh "docker run --rm ${APP_NAME}:latest pytest -v tests/"
             }
         }
 
